@@ -13,7 +13,7 @@ module Simpler
       @response = Rack::Response.new
     end
 
-    def make_response(action)
+    def make_response(action, params)
       @request.env['simpler.controller'] = self
       @request.env['simpler.action'] = action
       @request.env['simpler.handler'] = "#{self.class}##{action}"
@@ -21,7 +21,7 @@ module Simpler
       set_params(params)
       set_default_headers
       send(action)
-      write_response
+      write_response if @response.body.empty?
 
       @response.finish
     end
@@ -33,11 +33,11 @@ module Simpler
     end
 
     def set_default_headers
-      DEFAULT_HEADERS.each { |k, v| set_header(k,v) }
+      DEFAULT_HEADERS.each { |k, v| puts "k = #{k}, v = #{v}"; set_header(k,v) }
     end
 
     def write_response(body = nil)
-      body ||= render_body
+      body = body || render_body
 
       @response.write(body)
     end
@@ -77,7 +77,8 @@ module Simpler
     end
 
     def set_header(key, v)
-      @response[key] = v
+      puts "key = #{key}, v = #{v}"
+      @response.set_header(key, v)
     end
   end
 end
