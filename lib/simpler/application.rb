@@ -34,8 +34,7 @@ module Simpler
         params = route.params(env)
         make_response(controller, action, params)
       else
-        [404, Controller::DEFAULT_HEADERS, ["Not Found"]]
-        # Rack::Response.new("Not Found", 404, Controller::DEFAULT_HEADERS).finish
+        Rack::Response.new("Not Found", 404, Controller::DEFAULT_HEADERS).finish
       end
     end
 

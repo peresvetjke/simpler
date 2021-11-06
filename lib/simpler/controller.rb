@@ -1,4 +1,8 @@
 require_relative 'view'
+require_relative 'controller/renderer'
+require_relative 'controller/inline_renderer'
+require_relative 'controller/text_renderer'
+require_relative 'controller/file_renderer'
 
 module Simpler
   class Controller
@@ -6,11 +10,14 @@ module Simpler
     DEFAULT_HEADERS = {'Content-Type' => 'text/html; charset=utf-8'}.freeze
 
     attr_reader :name, :request, :response
+    attr_accessor :renderer, :options
 
     def initialize(env)
       @name = extract_name
       @request = Rack::Request.new(env)
       @response = Rack::Response.new
+      @renderer = nil
+      @options = nil
     end
 
     def make_response(action, params)
@@ -21,7 +28,7 @@ module Simpler
       set_params(params)
       set_default_headers
       send(action)
-      write_response if @response.body.empty?
+      write_response
 
       @response.finish
     end
@@ -32,18 +39,18 @@ module Simpler
       self.class.name.match('(?<name>.+)Controller')[:name].downcase
     end
 
-    def set_default_headers
-      DEFAULT_HEADERS.each { |k, v| puts "k = #{k}, v = #{v}"; set_header(k,v) }
-    end
-
-    def write_response(body = nil)
-      body = body || render_body
-
+    def write_response
+      body = render_body
       @response.write(body)
     end
 
     def render_body
-      View.new(@request.env).render(binding)
+      renderer = Renderer.determine_renderer(options)
+      renderer.new(@request, @response, options).render_body(binding)
+    end
+
+    def set_default_headers
+      DEFAULT_HEADERS.each { |k,v| set_header(k, v) }
     end
 
     def set_params(params)
@@ -56,28 +63,11 @@ module Simpler
     end
 
     def render(**args)
-      args.each { |k, v| send("render_#{k}", v) }
-    end
-
-    def render_template(template)
-      @request.env['simpler.template'] = template
-    end
-
-    def render_status(status)
-      @response.status = status
-    end
-
-    def render_plain(body)
-      write_response(body)
-      set_header('Content-Type', 'text/plain; charset=utf-8')
-    end
-
-    def render_inline(body)
-      @request.env['simpler.inline_body'] = body
+      @response.status = args[:status] if args.key?(:status)
+      @options = args
     end
 
     def set_header(key, v)
-      puts "key = #{key}, v = #{v}"
       @response.set_header(key, v)
     end
   end
